@@ -1,37 +1,50 @@
 (function (global) {
+'use strict';
 
-var console = global.console,
-    document = global.document,
-    Math = global.Math;
-
-var NUM_ROWS = 10,
-    NUM_COLS = 10,
-    NUM_TURNS = 10;
+var NUM_ROWS = 65,
+    NUM_COLS = 100,
+    TICK_INTERVAL = 100;
 
 // ============================================================================
 // Drawing
 
-function setupContext(context) {
-
+function Canvas(ctx, width, height) {
+    this.ctx = ctx;
+    this.width = width;
+    this.height = height;
+    this.blockWidth = width / NUM_COLS;
+    this.blockHeight = height / NUM_ROWS;
+    this.oldBoard = null;
 }
 
-function draw(context, oldBoard, newBoard) {
-    console.log('Drawing board');
-}
+Canvas.prototype.drawSquare = function (row, col, live) {
+    var ctx = this.ctx,
+        width = this.blockWidth,
+        height = this.blockHeight;
+    ctx.fillStyle = live ? 'black' : 'white';
+    ctx.fillRect(col * width, row * height, width, height);
+};
+
+Canvas.prototype.draw = function (board) {
+    for (var i = 0; i < NUM_ROWS; i++) {
+        for (var j = 0; j < NUM_COLS; j++) {
+            if (!this.oldBoard || this.oldBoard[i][j] !== board[i][j]) {
+                this.drawSquare(i, j, board[i][j]);
+            }
+        }
+    }
+    this.oldBoard = board;
+};
 
 // ============================================================================
 // Simulation
-
-function randomCell() {
-    return Math.random() >= 0.5;
-}
 
 function createBoard() {
     var board = [];
     for (var i = 0; i < NUM_ROWS; i++) {
         var row = [];
         for (var j = 0; j < NUM_COLS; j++) {
-            row.push(randomCell());
+            row.push(global.Math.random() >= 0.5);
         }
         board.push(row);
     }
@@ -39,30 +52,40 @@ function createBoard() {
 }
 
 function tick(oldBoard) {
-    return oldBoard;
+    var newBoard = createBoard();
+    for (var i = 0; i < NUM_ROWS; i++) {
+        for (var j = 0; j < NUM_COLS; j++) {
+            newBoard[i][j] = isLive(oldBoard, i, j);
+        }
+    }
+    return newBoard;
 }
 
 function isLive(board, row, col) {
-    return false;
+    var live = board[row][col];
+    var nbrs = 0;
+    for (var i = row - 1; i < row + 2; i++) {
+        if (i < 0 || i >= board.length) continue;
+        for (var j = col - 1; j < col + 2; j++) {
+            if (j < 0 || j >= board[i].length) continue;
+            if (i === row && j === col) continue;
+            if (board[i][j]) nbrs++;
+        }
+    }
+    return !live && nbrs === 3 || live && (nbrs === 2 || nbrs === 3);
 }
 
 // ============================================================================
 // Main
 
 function main() {
-    console.log('Starting Game of Life');
-
-    var canvas = document.getElementById('life-canvas');
-    var context = canvas.getContext('2d');
-    setupContext(context);
-
-    var oldBoard = null;
-    var newBoard = createBoard();
-    for (var i = 0; i < NUM_TURNS; i++) {
-        draw(context, oldBoard, newBoard);
-        oldBoard = newBoard;
-        newBoard = tick(oldBoard);
-    }
+    var cvs = global.document.getElementById('life-canvas');
+    var canvas = new Canvas(cvs.getContext('2d'), cvs.width, cvs.height);
+    var board = createBoard();
+    global.setInterval(function () {
+        canvas.draw(board);
+        board = tick(board);
+    }, TICK_INTERVAL);
 }
 
 global.addEventListener('DOMContentLoaded', main);
